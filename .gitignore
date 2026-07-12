@@ -1,0 +1,26 @@
+# data artifacts — the SQLite db is rebuildable from the API and stays local
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# NOTE: report.html is deliberately NOT ignored — the generated report is a
+# committed artifact (refreshed weekly by CI).
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+
+# editors / os
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

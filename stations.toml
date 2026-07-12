@@ -1,0 +1,94 @@
+# hydro-pipeline configuration
+#
+# Station IDs are Water Survey of Canada (WSC) station numbers. Every station
+# below was verified against the ECCC GeoMet OGC API (hydrometric-realtime
+# collection) before being added: each one returns live water level data, and
+# all except none of the current set return discharge as well.
+#
+# API reality check (as of 2026-07):
+#   - hydrometric-realtime : 5-minute (some stations 15-minute) data, rolling
+#     retention of roughly 30 days.
+#   - hydrometric-daily-mean : validated daily means, published with a lag of
+#     a year or more (currently ends 2024-12-31 for these stations).
+# The pipeline requests the full window from both collections and stores
+# whatever each returns; SQLite accumulates history across runs, so repeated
+# fetches grow the usable window beyond the API's realtime retention.
+
+[api]
+base_url = "https://api.weather.gc.ca"
+user_agent = "hydro-pipeline/0.1 (+https://github.com/danlitvak/hydro-pipeline)"
+page_limit = 10000      # max items per request; collections accept up to 10000
+request_delay_s = 0.5   # polite pause between requests
+timeout_s = 60
+max_retries = 3
+
+[pipeline]
+window_days = 90                  # requested ingest window (API may retain less)
+parameters = ["level", "discharge"]
+timezone = "America/Vancouver"    # local calendar days for daily aggregation
+min_daily_samples = 24            # drop realtime days with fewer samples than this
+max_gap_days = 2                  # interpolate gaps up to this many days, else leave NaN
+
+[analysis]
+rolling_window_days = 7
+min_periods = 4         # minimum observations in a window before stats are emitted
+z_threshold = 2.0       # |z| beyond this flags an anomaly
+ci_level = 0.95         # confidence level for the rolling-mean interval
+
+# --- Stations (all verified live against hydrometric-realtime, 2026-07-12) ---
+
+[[stations]]
+id = "08MF005"
+name = "Fraser River at Hope"
+river = "Fraser River"
+lat = 49.38596
+lon = -121.45424
+
+[[stations]]
+id = "08GA010"
+name = "Capilano River above Intake"
+river = "Capilano River"
+lat = 49.39624
+lon = -123.14584
+
+[[stations]]
+id = "08HD035"
+name = "Campbell River near Campbell River Cableway"
+river = "Campbell River"
+lat = 50.03736
+lon = -125.28692
+
+[[stations]]
+id = "08GA022"
+name = "Squamish River near Brackendale"
+river = "Squamish River"
+lat = 49.79502
+lon = -123.20316
+
+[[stations]]
+id = "08MG005"
+name = "Lillooet River near Pemberton"
+river = "Lillooet River"
+lat = 50.33602
+lon = -122.80025
+
+[[stations]]
+id = "08LF051"
+name = "Thompson River near Spences Bridge"
+river = "Thompson River"
+lat = 50.35463
+lon = -121.39365
+
+[[stations]]
+id = "08MH001"
+name = "Chilliwack River at Vedder Crossing"
+river = "Chilliwack River"
+lat = 49.09738
+lon = -121.96748
+
+[[stations]]
+id = "08NM050"
+name = "Okanagan River at Penticton"
+river = "Okanagan River"
+lat = 49.49852
+lon = -119.61536

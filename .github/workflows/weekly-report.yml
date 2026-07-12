@@ -1,0 +1,63 @@
+name: weekly-report
+
+# Refresh the published report every Monday morning (Pacific). The ECCC API is
+# public — no secrets involved. The SQLite database is carried between runs via
+# the actions cache, so accumulated history survives the API's ~30-day realtime
+# retention window; only report.html is committed.
+
+on:
+  schedule:
+    - cron: "17 14 * * 1" # Mondays 14:17 UTC ≈ 06:17/07:17 Pacific
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-report
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -e .
+
+      - name: Restore accumulated database
+        uses: actions/cache@v4
+        with:
+          path: data/hydro.db
+          key: hydro-db-${{ github.run_id }}
+          restore-keys: |
+            hydro-db-
+
+      - name: Fetch
+        run: python -m hydro fetch
+
+      - name: Analyze
+        run: python -m hydro analyze
+
+      - name: Report
+        run: python -m hydro report --out report.html
+
+      - name: Commit refreshed report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add report.html
+          if git diff --cached --quiet; then
+            echo "report unchanged, nothing to commit"
+          else
+            git commit -m "chore: weekly report refresh ($(date -u +%Y-%m-%d))"
+            git push
+          fi
